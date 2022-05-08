@@ -6,6 +6,10 @@ import 'package:flutter/material.dart';
 import '../widgets/new_message_input.dart';
 import '../widgets/messages_list.dart';
 
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  print("background message received: ${message.data.toString()}");
+}
+
 class ChatScreen extends StatefulWidget {
   const ChatScreen({Key? key}) : super(key: key);
 
@@ -14,19 +18,30 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
+  final ScrollController _messageListScrollController = ScrollController();
+
+  void _scrollDown() {
+    _messageListScrollController.animateTo(
+        _messageListScrollController.position.maxScrollExtent,
+        duration: Duration(milliseconds: 500),
+        curve: Curves.fastOutSlowIn);
+  }
+
   @override
   void initState() {
     super.initState();
     final fbm = FirebaseMessaging.instance;
     fbm.requestPermission();
     FirebaseMessaging.onMessage.listen((message) {
-      print('message: $message');
+      print('message: ${message.data.toString()}');
       return;
     });
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      print('message on opening: $message');
+      print('message on opening: ${message.data.toString()}');
       return;
     });
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
     fbm.subscribeToTopic('chat');
   }
 
@@ -40,6 +55,7 @@ class _ChatScreenState extends State<ChatScreen> {
         title: const Text('Chat', style: TextStyle(color: Colors.white)),
         actions: [
           DropdownButton(
+              underline: Container(),
               icon: const Icon(Icons.more_vert),
               onChanged: (identifier) {
                 if (identifier == 'logout') {
@@ -61,8 +77,10 @@ class _ChatScreenState extends State<ChatScreen> {
               ])
         ],
       ),
-      body: Column(
-          children: [Expanded(child: MessagesList()), NewMessageInput()]),
+      body: Column(children: [
+        Expanded(child: MessagesList(controller: _messageListScrollController)),
+        NewMessageInput()
+      ]),
     );
   }
 }
